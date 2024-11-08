@@ -4,42 +4,46 @@ FROM node:18-alpine as builder
 # Set working directory
 WORKDIR /usr/src/app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
-
-# Install dependencies
-RUN npm i
+RUN npm install
 
 # Copy source code
 COPY . .
 
+# Create logs directory with correct permissions in the builder stage
+RUN mkdir -p logs
+
 # Production stage
 FROM node:18-alpine
 
-# Install necessary production packages
+# Install tini for managing processes
 RUN apk add --no-cache tini
 
-# Create app directory
+# Set working directory
 WORKDIR /usr/src/app
 
-# Create a non-root user
+# Create a non-root user for security
 RUN addgroup -g 1001 nodejs && \
     adduser -S -u 1001 -G nodejs nodejs
 
 # Copy built assets from builder
-COPY --from=builder --chown=nodejs:nodejs /usr/src/app/package*.json ./
-COPY --from=builder --chown=nodejs:nodejs /usr/src/app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /usr/src/app/src ./src
-COPY --from=builder --chown=nodejs:nodejs /usr/src/app/logs ./logs
+COPY --from=builder /usr/src/app/package*.json ./
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/src ./src
+COPY --from=builder /usr/src/app/logs ./logs
 
-# Create necessary directories with correct permissions
-RUN mkdir -p logs && chown -R nodejs:nodejs logs
+# Ensure the logs directory has the correct ownership
+RUN chown -R nodejs:nodejs /usr/src/app/logs
 
-# Switch to non-root user
+# Switch to the non-root user
 USER nodejs
 
-# Expose port
+# Expose the application port
 EXPOSE 8082
 
+# Use tini to start the application
+ENTRYPOINT ["/sbin/tini", "--"]
+
 # Start the application
-CMD ["node", "src/index.js"] 
+CMD ["node", "src/index.js"]
