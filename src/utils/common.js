@@ -52,10 +52,12 @@ export const moveToPhotoGrapherFolder = async (eventId, files) => {
 };
 
 export const getGCPBucket = () => {
-  const storage = new Storage({
-    keyFilename: process.env.KEY_FILE_NAME,
-  });
+  const storageConfig = process.env.KEY_FILE_NAME
+    ? { keyFilename: process.env.KEY_FILE_NAME }
+    : {}; // Use default credentials on Cloud Run
+
+  const storage = new Storage(storageConfig);
   const bucketName = process.env.BUCKET_NAME;
   const bucket = storage.bucket(bucketName);
-  return bucket
-}
+  return bucket;
+};
