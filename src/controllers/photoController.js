@@ -3,6 +3,7 @@ import Photo from '../models/photo.js';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import { getGCPBucket } from '../utils/common.js';
+import { defineClusters } from '../services/faceDetectionService.js';
 
 
 export const uploadMultiplePhotos = async (req, res) => {
@@ -51,8 +52,8 @@ export const uploadMultiplePhotos = async (req, res) => {
         blobStream.end(compressedBuffer);
       });
     });
-
     const photoDataArray = await Promise.all(uploadPromises);
+    defineClusters(photoDataArray, eventId);
     await Photo.insertMany(photoDataArray);
 
     res.status(200).json({ message: 'Photos uploaded successfully!', photos: photoDataArray });
