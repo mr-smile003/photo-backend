@@ -16,23 +16,18 @@ const extractFaceEncodings = async (photoDataArray) => {
     try {
         // Chunk the photoDataArray into chunks of 100
         const chunks = chunkArray(photoDataArray, 100);
-
         const photoWithEncodings = [];
 
         // Process each chunk sequentially
         for (const chunk of chunks) {
-            // Fetch encodings and associate them with their respective photo details
-            const encodings = await Promise.all(
-                chunk.map(async (photo) => {
-                    const encoding = await getFaceEncodings(photo.url);
-                    return {
-                        ...photo, // Spread photo details
-                        encodings: encoding?.encodings, // Add encodings to the photo object
-                    };
-                })
-            );
-
-            photoWithEncodings.push(...encodings);
+            // Process each photo one by one
+            for (const photo of chunk) {
+                const encoding = await getFaceEncodings(photo.url);
+                photoWithEncodings.push({
+                    ...photo,
+                    encodings: encoding?.encodings,
+                });
+            }
         }
         
         return photoWithEncodings;

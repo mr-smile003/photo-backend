@@ -28,7 +28,7 @@ export const uploadMultiplePhotos = async (req, res) => {
       // Compress the image using Sharp
       const compressedBuffer = await sharp(file.buffer)
         .rotate()
-        .jpeg({ quality: 40 })        // Compress to JPEG with 80% quality
+        .jpeg({ quality: 30 })        // Compress to JPEG with 80% quality
         .toBuffer();
 
       const blobStream = blob.createWriteStream({
