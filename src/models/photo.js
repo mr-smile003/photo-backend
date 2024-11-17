@@ -14,6 +14,7 @@ const photoSchema = new mongoose.Schema({
   },
   url: String,
   clusterIds: { type: [mongoose.Schema.ObjectId], default: [] },
+  face_detection: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   // Other fields as needed
 });

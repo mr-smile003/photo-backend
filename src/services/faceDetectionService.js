@@ -66,9 +66,17 @@ export const defineClusters = async (photoDataArray, eventId) => {
                 }
                 else {
                     const newCluster = await Clusters.create({ eventId, encoding: encodings[i]  });
+                    await photo.updateOne(
+                        { _id: photoWithEncoding?._id },
+                        { $push: { clusterIds: newCluster?._id }}
+                    )
                     existingEncodings.push({ eventId: eventId, encoding: encodings[i], _id: newCluster._id }); // Update in-memory list to avoid duplicate processing
                 }
             }
+            await photo.updateOne(
+                { _id: photoWithEncoding?._id },
+                { $set: { face_detection: true }}
+            )
         }
     } catch (error) {
         console.error('Error defining clusters:', error);

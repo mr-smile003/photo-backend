@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import { getGCPBucket } from '../utils/common.js';
 import { defineClusters, matchSelfie } from '../services/faceDetectionService.js';
+import mongoose from 'mongoose';
 
 
 export const uploadMultiplePhotos = async (req, res) => {
@@ -27,7 +28,7 @@ export const uploadMultiplePhotos = async (req, res) => {
       // Compress the image using Sharp
       const compressedBuffer = await sharp(file.buffer)
         .rotate()
-        .jpeg({ quality: 30 })        // Compress to JPEG with 80% quality
+        .jpeg({ quality: 40 })        // Compress to JPEG with 80% quality
         .toBuffer();
 
       const blobStream = blob.createWriteStream({
@@ -189,3 +190,10 @@ export const getSelfiePhotos = async (req, res) => {
     res.status(500).json({ message: 'Error uploading photo' });
   }
 };
+
+
+export const getFaceDetectionStatus = async (req, res) => {
+  const { eventId, photoId } = req.query;
+  const isDetected = await Photo.findOne({ _id: new mongoose.Types.ObjectId(photoId), eventId: new mongoose.Types.ObjectId(eventId) }, { face_detection: 1 }).lean();
+  res.status(200).json({ isDetected: isDetected?.face_detection });
+}
