@@ -3,6 +3,7 @@ import Photo from '../models/photo.js';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import { getGCPBucket } from '../utils/common.js';
+import { defineClusters, matchSelfie } from '../services/faceDetectionService.js';
 
 
 export const uploadMultiplePhotos = async (req, res) => {
@@ -25,6 +26,7 @@ export const uploadMultiplePhotos = async (req, res) => {
 
       // Compress the image using Sharp
       const compressedBuffer = await sharp(file.buffer)
+        .rotate()
         .jpeg({ quality: 30 })        // Compress to JPEG with 80% quality
         .toBuffer();
 
@@ -51,9 +53,10 @@ export const uploadMultiplePhotos = async (req, res) => {
         blobStream.end(compressedBuffer);
       });
     });
-
     const photoDataArray = await Promise.all(uploadPromises);
-    await Photo.insertMany(photoDataArray);
+    const allData = await Photo.insertMany(photoDataArray)
+    const leanData = allData.map(doc => doc.toObject());
+    defineClusters(leanData, eventId);
 
     res.status(200).json({ message: 'Photos uploaded successfully!', photos: photoDataArray });
   } catch (err) {
@@ -65,12 +68,18 @@ export const uploadMultiplePhotos = async (req, res) => {
 // Get photos by event ID
 export const getPhotosByEventId = async (req, res) => {
   try {
-    let { eventId, skip = 0, limit = 20, folderId } = req.query;
-    if (!eventId || !folderId) return res.status(404).json({ message: 'eventId and folderId required.' });
+    let { eventId, skip = 0, limit = 20, folderId, matchPersonId } = req.query;
+    if (!eventId) return res.status(404).json({ message: 'eventId and folderId required.' });
     if(limit > 100) limit = 50;
-
-    const totalPhotos = await Photo.countDocuments({ eventId, folderId }); // Get total count
-    const photos = await Photo.find({ eventId, folderId }).lean().skip(parseInt(skip)).limit(parseInt(limit));
+    const criteria = { eventId }
+    if(folderId){
+      criteria.folderId = folderId
+    }
+    if(matchPersonId){
+      criteria.clusterIds = matchPersonId
+    }
+    const totalPhotos = await Photo.countDocuments(criteria); // Get total count
+    const photos = await Photo.find(criteria).lean().skip(parseInt(skip)).limit(parseInt(limit));
     
     res.status(200).json({
       data: photos,
@@ -129,6 +138,48 @@ export const uploadPhoto = async (req, res) => {
       const photoUrl = `https://storage.googleapis.com/${bucket.name}/${gcsFilename}`;
       res.status(200).json({ message: 'Photo uploaded successfully!', photoUrl });
     });
+
+    // Upload the compressed buffer
+    blobStream.end(compressedBuffer);
+
+  } catch (err) {
+    console.error('Error during upload:', err);
+    res.status(500).json({ message: 'Error uploading photo' });
+  }
+};
+export const getSelfiePhotos = async (req, res) => {
+  const bucket = getGCPBucket()
+  try {
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ message: 'No photo uploaded' });
+    }
+
+    const gcsFilename = `${uuidv4()}_${file.originalname}`;
+    const blob = bucket.file(gcsFilename);
+
+    // Compress the image using Sharp
+    const compressedBuffer = await sharp(file.buffer)
+      .flop()
+      .jpeg({ quality: 30 }) // Compress to JPEG with 30% quality
+      .toBuffer();
+
+    const blobStream = blob.createWriteStream({
+      resumable: false,
+      contentType: 'image/jpeg',
+    });
+
+    blobStream.on('error', (err) => {
+      console.error('Upload error:', err);
+      res.status(500).json({ message: 'Error uploading photo' });
+    });
+
+    blobStream.on('finish', async() => {
+      const photoUrl = `https://storage.googleapis.com/${bucket.name}/${gcsFilename}`;
+      const matchPersonId = await matchSelfie(photoUrl, req.body.eventId);
+      res.status(200).json({ message: 'Photo uploaded successfully!', matchPersonId });
+    }); 
 
     // Upload the compressed buffer
     blobStream.end(compressedBuffer);
