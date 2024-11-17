@@ -93,6 +93,7 @@ export const httpRequest = async (endpoint, method, data = {}, headers = {}, bas
 
   const defaultHeaders = {
     'Content-Type': 'application/json',
+    'x-api-key': process.env.X_API_KEY,
     ...headers,
   };
 
