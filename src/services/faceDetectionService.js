@@ -82,8 +82,7 @@ export const matchSelfie = async (url, eventId) => {
     const existingEncodings = await Clusters.find({ eventId }, { encoding: 1 }).lean();
     const matched =  await matchFace(encoding?.encodings[0], existingEncodings);
     if(matched?.personId){
-        const allPhotos = await photo.find({ clusterIds: matched?.personId }).lean();
-        return allPhotos
+        return matched?.personId
     }
     return null
 }

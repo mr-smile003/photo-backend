@@ -68,12 +68,18 @@ export const uploadMultiplePhotos = async (req, res) => {
 // Get photos by event ID
 export const getPhotosByEventId = async (req, res) => {
   try {
-    let { eventId, skip = 0, limit = 20, folderId } = req.query;
-    if (!eventId || !folderId) return res.status(404).json({ message: 'eventId and folderId required.' });
+    let { eventId, skip = 0, limit = 20, folderId, matchPersonId } = req.query;
+    if (!eventId) return res.status(404).json({ message: 'eventId and folderId required.' });
     if(limit > 100) limit = 50;
-
-    const totalPhotos = await Photo.countDocuments({ eventId, folderId }); // Get total count
-    const photos = await Photo.find({ eventId, folderId }).lean().skip(parseInt(skip)).limit(parseInt(limit));
+    const criteria = { eventId }
+    if(folderId){
+      criteria.folderId = folderId
+    }
+    if(matchPersonId){
+      criteria.clusterIds = matchPersonId
+    }
+    const totalPhotos = await Photo.countDocuments(criteria); // Get total count
+    const photos = await Photo.find(criteria).lean().skip(parseInt(skip)).limit(parseInt(limit));
     
     res.status(200).json({
       data: photos,
@@ -171,8 +177,8 @@ export const getSelfiePhotos = async (req, res) => {
 
     blobStream.on('finish', async() => {
       const photoUrl = `https://storage.googleapis.com/${bucket.name}/${gcsFilename}`;
-      const allPhotos = await matchSelfie(photoUrl, req.body.eventId);
-      res.status(200).json({ message: 'Photo uploaded successfully!', allPhotos });
+      const matchPersonId = await matchSelfie(photoUrl, req.body.eventId);
+      res.status(200).json({ message: 'Photo uploaded successfully!', matchPersonId });
     }); 
 
     // Upload the compressed buffer
