@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { Storage } from '@google-cloud/storage';
+import axios from 'axios';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,4 +61,60 @@ export const getGCPBucket = () => {
   const bucketName = process.env.BUCKET_NAME;
   const bucket = storage.bucket(bucketName);
   return bucket;
+};
+
+export const chunkArray = (array, chunkSize) => {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+      chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+};
+
+/**
+ * Makes an HTTP request using Axios.
+ *
+ * @param {string} endpoint - The endpoint or full URL for the request.
+ * @param {string} method - The HTTP method (GET, POST, PUT, DELETE, PATCH).
+ * @param {object} [data={}] - The request payload for methods like POST or PUT.
+ * @param {object} [headers={}] - Additional request headers.
+ * @param {string} [baseUrl=''] - The base URL for relative endpoints.
+ * @returns {Promise<any>} - The response data from the server.
+ */
+export const httpRequest = async (endpoint, method, data = {}, headers = {}, baseUrl = '') => {
+  const validMethods = ['get', 'post', 'put', 'delete', 'patch'];
+  const httpMethod = method.toLowerCase();
+
+  if (!validMethods.includes(httpMethod)) {
+    throw new Error(`Invalid HTTP method: ${method}`);
+  }
+
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
+
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    ...headers,
+  };
+
+  const config = {
+    method: httpMethod,
+    url,
+    headers: defaultHeaders,
+    ...(httpMethod === 'post' || httpMethod === 'put' || httpMethod === 'patch' || httpMethod === 'delete'
+      ? { data }
+      : {}),
+  };
+
+  try {
+    const response = await axios(config);
+    return response.data;
+  } catch (error) {
+    console.error('Error in HTTP request:', {
+      url,
+      method: httpMethod,
+      data,
+      error: error.response?.data || error.message,
+    });
+    throw error;
+  }
 };

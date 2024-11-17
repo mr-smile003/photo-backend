@@ -13,6 +13,7 @@ const photoSchema = new mongoose.Schema({
     ref: 'Folder',
   },
   url: String,
+  clusterIds: { type: [mongoose.Schema.ObjectId], default: [] },
   createdAt: { type: Date, default: Date.now },
   // Other fields as needed
 });

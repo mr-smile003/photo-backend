@@ -10,6 +10,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post('/', upload.array('photos'), photoController.uploadMultiplePhotos);
 router.post('/upload', upload.single('file'), photoController.uploadPhoto);
 router.get('/event', photoController.getPhotosByEventId);
+router.post('/selfie', upload.single('file'), photoController.getSelfiePhotos);
 router.get('/:id', photoController.getPhotoById);
 
 export default router;
