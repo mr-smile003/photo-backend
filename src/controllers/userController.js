@@ -1,6 +1,7 @@
 // controllers/userController.js
 
 import User from "../models/user.js";
+import { errorResponse, notFoundResponse, successResponse } from "../utils/responseWrapper.js";
 
 // Get a user by ID
 export const getUserDetails = async (req, res) => {
@@ -9,13 +10,13 @@ export const getUserDetails = async (req, res) => {
     const user = await User.findById(id);
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return notFoundResponse(res, 'User not found');
     }
 
-    res.status(200).json(user);
+    return successResponse(res, user, 'Events retrieved successfully');
   } catch (error) {
     console.error('Error fetching user:', error);
-    res.status(500).json({ message: 'Error fetching user' });
+    return errorResponse(res, 'Error fetching user');
   }
 };
 

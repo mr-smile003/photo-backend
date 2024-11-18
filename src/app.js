@@ -7,6 +7,7 @@ import userRoutes from './routes/userRoutes.js';
 import folderRoutes from './routes/folderRoutes.js';
 import { authenticateAPIKey } from './middleware/authenticateAPIKey.js';
 import dotenv from 'dotenv';
+import mainCategoryRoutes from './routes/mainCategoryRoutes.js';
 const app = express();
 
 // Connect to MongoDB
@@ -33,6 +34,7 @@ app.use('/api/photos', photoRoutes);
 app.use('/events', eventRoutes);
 app.use('/folders', folderRoutes);
 app.use('/users', userRoutes)
+app.use('/main-category', mainCategoryRoutes)
 // Serve static files
 app.use(express.static('public'));
 
