@@ -6,6 +6,7 @@ const eventSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   createdAt: { type: Date, default: Date.now },
   eventPicture: { type: String, required: false },
+  eventNumber: { type: String, required: false, unique: true },
   folders: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Folder' }] 
 });
 

@@ -2,17 +2,39 @@
 
 import Event from "../models/events.js";
 
+// Generate unique 6 character event number (alphanumeric)
+const generateEventNumber = () => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
+
+// Check if generated number already exists, if so generate new one
+const getUniqueEventNumber = async () => {
+  const number = generateEventNumber();
+  const existingEvent = await Event.findOne({ eventNumber: number });
+  if (existingEvent) {
+    return getUniqueEventNumber(); // Recursively try again if number exists
+  }
+  return number;
+};
+
 // Create a new event
 export const createEvent = async (req, res) => {
   try {
     const { name, description, date, eventPicture } = req.body;
-    
+
+    const eventNumber = await getUniqueEventNumber();
     // Create a new event
     const newEvent = new Event({
       name,
       description,
       date,
-      eventPicture
+      eventPicture,
+      eventNumber
     });
 
     // Save the event to the database

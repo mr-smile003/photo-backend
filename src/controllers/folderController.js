@@ -32,8 +32,9 @@ export const createFolder = async (req, res) => {
 // Get all folders
 export const getFolders = async (req, res) => {
   try {
-    const { eventId } = req.query;
-    const folders = await Folder.find({ eventId });
+    const { eventNumber } = req.query;
+    const eventId = await Event.findOne({ eventNumber: eventNumber }, { _id: 1 }).lean();
+    const folders = await Folder.find({ eventId }).lean();
     res.status(200).json(folders);
   } catch (error) {
     console.error('Error fetching folders:', error);

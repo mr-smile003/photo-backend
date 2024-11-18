@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import { getGCPBucket } from '../utils/common.js';
 import { defineClusters, matchSelfie } from '../services/faceDetectionService.js';
 import mongoose from 'mongoose';
+import Event from '../models/events.js';
 
 
 export const uploadMultiplePhotos = async (req, res) => {
@@ -69,8 +70,9 @@ export const uploadMultiplePhotos = async (req, res) => {
 // Get photos by event ID
 export const getPhotosByEventId = async (req, res) => {
   try {
-    let { eventId, skip = 0, limit = 20, folderId, matchPersonId } = req.query;
-    if (!eventId) return res.status(404).json({ message: 'eventId and folderId required.' });
+    let { eventNumber, skip = 0, limit = 20, folderId, matchPersonId } = req.query;
+    if (!eventNumber) return res.status(404).json({ message: 'eventNumber and folderId required.' });
+    const eventId = await Event.findOne({ eventNumber: eventNumber }, { _id: 1 });
     if(limit > 100) limit = 50;
     const criteria = { eventId }
     if(folderId){
@@ -151,6 +153,9 @@ export const uploadPhoto = async (req, res) => {
 export const getSelfiePhotos = async (req, res) => {
   const bucket = getGCPBucket()
   try {
+
+    const { eventNumber } = req.body;
+    const eventId = await Event.findOne({ eventNumber: eventNumber }, { _id: 1 }).lean();
     const file = req.file;
 
     if (!file) {
@@ -178,7 +183,7 @@ export const getSelfiePhotos = async (req, res) => {
 
     blobStream.on('finish', async() => {
       const photoUrl = `https://storage.googleapis.com/${bucket.name}/${gcsFilename}`;
-      const matchPersonId = await matchSelfie(photoUrl, req.body.eventId);
+      const matchPersonId = await matchSelfie(photoUrl, eventId?._id);
       res.status(200).json({ message: 'Photo uploaded successfully!', matchPersonId });
     }); 
 
