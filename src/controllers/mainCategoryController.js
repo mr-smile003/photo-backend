@@ -37,12 +37,13 @@ export const getAlbumData = async (req, res) => {
                 id: subCategory._id,
                 name: subCategory.name,
                 image: subCategory.folderPicture ?? photos[0].url,
-                subCategoryImages: photos
+                subCategoryImages: photos,
+                imageCount: photos.length
             };
         });
 
         data.subCategories = await Promise.all(subCategoryPromises);
-
+        data.eventNumber = eventNumber
         if(!data.mainCategoryImage) {
             data.mainCategoryImage = data.subCategories[0].image;
         }
