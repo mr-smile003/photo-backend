@@ -84,14 +84,14 @@ export const getPhotosByEventId = async (req, res) => {
     const totalPhotos = await Photo.countDocuments(criteria); // Get total count
     const photos = await Photo.find(criteria).lean().skip(parseInt(skip)).limit(parseInt(limit));
     
-    res.status(200).json({
+    return res.status(200).json({
       data: photos,
       totalCount: totalPhotos, // Include total count in response
       message: 'Photos retrieved successfully!'
     });
   } catch (err) {
     console.error('Error fetching photos:', err);
-    res.status(500).json({ message: 'Error fetching photos' });
+    return res.status(500).json({ message: 'Error fetching photos' });
   }
 };
 
@@ -100,13 +100,13 @@ export const getPhotoById = async (req, res) => {
   try {
     const photo = await Photo.findById(req.params.id).lean();
     if (!photo) {
-      return res.status(404).json({ message: 'Photo not found' });
+      return res.status(400).json({ message: 'Photo not found' });
     }
 
     res.redirect(photo.url); // Redirect to the GCS public URL
   } catch (err) {
     console.error('Error fetching photo:', err);
-    res.status(500).json({ message: 'Error fetching photo' });
+    return res.status(500).json({ message: 'Error fetching photo' });
   }
 };
 
@@ -134,12 +134,12 @@ export const uploadPhoto = async (req, res) => {
 
     blobStream.on('error', (err) => {
       console.error('Upload error:', err);
-      res.status(500).json({ message: 'Error uploading photo' });
+      return res.status(500).json({ message: 'Error uploading photo' });
     });
 
     blobStream.on('finish', () => {
       const photoUrl = `https://storage.googleapis.com/${bucket.name}/${gcsFilename}`;
-      res.status(200).json({ message: 'Photo uploaded successfully!', photoUrl });
+      return res.status(200).json({ message: 'Photo uploaded successfully!', photoUrl });
     });
 
     // Upload the compressed buffer
@@ -147,7 +147,7 @@ export const uploadPhoto = async (req, res) => {
 
   } catch (err) {
     console.error('Error during upload:', err);
-    res.status(500).json({ message: 'Error uploading photo' });
+    return res.status(500).json({ message: 'Error uploading photo' });
   }
 };
 export const getSelfiePhotos = async (req, res) => {
@@ -178,13 +178,13 @@ export const getSelfiePhotos = async (req, res) => {
 
     blobStream.on('error', (err) => {
       console.error('Upload error:', err);
-      res.status(500).json({ message: 'Error uploading photo' });
+      return res.status(500).json({ message: 'Error uploading photo' });
     });
 
     blobStream.on('finish', async() => {
       const photoUrl = `https://storage.googleapis.com/${bucket.name}/${gcsFilename}`;
       const matchPersonId = await matchSelfie(photoUrl, eventId?._id);
-      res.status(200).json({ message: 'Photo uploaded successfully!', matchPersonId });
+      return res.status(200).json({ message: 'Photo uploaded successfully!', matchPersonId });
     }); 
 
     // Upload the compressed buffer
@@ -192,13 +192,18 @@ export const getSelfiePhotos = async (req, res) => {
 
   } catch (err) {
     console.error('Error during upload:', err);
-    res.status(500).json({ message: 'Error uploading photo' });
+    return res.status(500).json({ message: 'Error uploading photo' });
   }
 };
 
 
 export const getFaceDetectionStatus = async (req, res) => {
-  const { eventId, photoId } = req.query;
-  const isDetected = await Photo.findOne({ _id: new mongoose.Types.ObjectId(photoId), eventId: new mongoose.Types.ObjectId(eventId) }, { face_detection: 1 }).lean();
-  res.status(200).json({ isDetected: isDetected?.face_detection });
+  try {
+    const { eventId, photoId } = req.query;
+    const isDetected = await Photo.findOne({ _id: new mongoose.Types.ObjectId(photoId), eventId: new mongoose.Types.ObjectId(eventId) }, { face_detection: 1 }).lean();
+    return res.status(200).json({ isDetected: isDetected?.face_detection });
+  } catch (err){
+    console.error('Error during upload:', err);
+    return res.status(500).json({ message: 'Error getting status' });
+  }
 }

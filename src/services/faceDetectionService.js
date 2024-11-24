@@ -39,39 +39,49 @@ const extractFaceEncodings = async (photoDataArray) => {
 
 export const defineClusters = async (photoDataArray, eventId) => {
     try {
-        // Extract encodings from photo data
-        const photoWithEncodings = await extractFaceEncodings(photoDataArray);
+        for(const photoData of photoDataArray){
+            const faceEncode = await getFaceEncodings(photoData.url);
+            const encodings = faceEncode.encodings
 
-        // Fetch all existing encodings for the event once
-        const existingEncodings = await Clusters.find({ eventId }, { encoding: 1 }).lean();
+        if (encodings?.length) {
+            // Fetch all existing encodings for the event
+            const existingEncodings = await Clusters.find({ eventId }, { encoding: 1 }).lean();
 
-        for (const photoWithEncoding of photoWithEncodings) {
-            const encodings = photoWithEncoding?.encodings;
+            // Step 2: Process each encoding
+            for (const encoding of encodings) {
+                let cluster;
 
-            for (let i=0; i< encodings?.length; i++) {
-                // Check if a matching face exists
-                let isMatchFound = existingEncodings?.length > 0 ? await matchFace(encodings[i], existingEncodings) : null;
-                
-                if(isMatchFound?.personId){
-                    await photo.updateOne(
-                        { _id: photoWithEncoding?._id },
-                        { $push: { clusterIds: isMatchFound?.personId }}
-                    )
-                    isMatchFound = null
+                // Match the encoding to existing clusters
+                const match = existingEncodings.length
+                    ? await matchFace(encoding, existingEncodings)
+                    : null;
+
+                if (match?.personId) {
+                    // Match found; assign to the existing cluster
+                    cluster = match.personId;
+                } else {
+                    // No match found; create a new cluster
+                    const newCluster = await Clusters.create({ eventId, encoding });
+                    cluster = newCluster._id;
+
+                    // Update in-memory encodings
+                    existingEncodings.push({ eventId, encoding, _id: cluster });
                 }
-                else {
-                    const newCluster = await Clusters.create({ eventId, encoding: encodings[i]  });
-                    await photo.updateOne(
-                        { _id: photoWithEncoding?._id },
-                        { $push: { clusterIds: newCluster?._id }}
-                    )
-                    existingEncodings.push({ eventId: eventId, encoding: encodings[i], _id: newCluster._id }); // Update in-memory list to avoid duplicate processing
-                }
+
+                // Step 3: Update the photo with the cluster ID
+                await photo.updateOne(
+                    { _id: photoData._id },
+                    { $push: { clusterIds: cluster } }
+                );
             }
-            await photo.updateOne(
-                { _id: photoWithEncoding?._id },
-                { $set: { face_detection: true }}
-            )
+        }
+
+        // Mark photo as processed
+        await photo.updateOne(
+            { _id: photoData._id },
+            { $set: { face_detection: true } }
+        );
+
         }
     } catch (error) {
         console.error('Error defining clusters:', error);
@@ -81,11 +91,40 @@ export const defineClusters = async (photoDataArray, eventId) => {
 
 
 export const matchSelfie = async (url, eventId) => {
-    const encoding = await getFaceEncodings(url);
-    const existingEncodings = await Clusters.find({ eventId }, { encoding: 1 }).lean();
-    const matched =  await matchFace(encoding?.encodings[0], existingEncodings);
-    if(matched?.personId){
-        return matched?.personId
+    try {
+        const encoding = await getFaceEncodings(url);
+        if (!encoding?.encodings?.length) {
+            throw new Error('No face detected.');
+        }
+
+        const chunkSize = 50;
+        let skip = 0;
+
+        while (true) {
+            // Fetch a batch of clusters
+            const batch = await Clusters.find(
+                { eventId },
+                { encoding: 1, personId: 1 }
+            )
+                .skip(skip)
+                .limit(chunkSize)
+                .lean();
+
+            if (!batch.length) break; // Exit loop if no more data
+
+            // Match face in the current batch
+            const matched = await matchFace(encoding?.encodings?.[0], batch);
+            if (matched?.personId) {
+                return matched.personId;
+            }
+
+            // Move to the next batch
+            skip += chunkSize;
+        }
+
+        return null; // Return null if no match found
+    } catch (error) {
+        console.error('Error in matchSelfie:', error);
+        throw new Error(error?.message);
     }
-    return null
-}
+};

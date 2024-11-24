@@ -11,6 +11,7 @@ router.post('/', upload.array('photos'), photoController.uploadMultiplePhotos);
 router.post('/upload', upload.single('file'), photoController.uploadPhoto);
 router.get('/event', photoController.getPhotosByEventId);
 router.post('/selfie', upload.single('file'), photoController.getSelfiePhotos);
+router.post('/selfie-mobile', upload.single('file'), photoController.getSelfiePhotos);
 router.get('/detection', photoController.getFaceDetectionStatus);
 router.get('/:id', photoController.getPhotoById);
 

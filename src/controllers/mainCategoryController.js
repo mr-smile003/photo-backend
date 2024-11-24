@@ -1,6 +1,8 @@
 import Event from "../models/events.js";
 import Folder from "../models/folders.js";
 import photo from "../models/photo.js";
+import { matchSelfie } from "../services/faceDetectionService.js";
+import { uploadAndCompressImage } from "../utils/imageUpload.js";
 import { errorResponse, successResponse } from "../utils/responseWrapper.js";
 
 export const getAlbumData = async (req, res) => {
@@ -54,3 +56,47 @@ export const getAlbumData = async (req, res) => {
         return errorResponse(res, 'Error fetching album data');
     }
 }
+
+
+export const getPersonImages = async (req, res) => {
+    try {
+        const { eventNumber } = req.body;
+        const file = req.file;
+
+        // Validate input
+        if (!eventNumber) {
+            return errorResponse(res, 'Event number is required.');
+        }
+        if (!file) {
+            return errorResponse(res, 'Please provide a photo.');
+        }
+
+        // Find event ID
+        const event = await Event.findOne({ eventNumber }, { _id: 1 }).lean();
+        if (!event?._id) {
+            return errorResponse(res, 'Event not found.');
+        }
+
+        const eventId = event._id;
+
+        // Upload and compress image
+        const url = await uploadAndCompressImage(file, 50);
+
+        // Match selfie to cluster
+        const matchPersonId = await matchSelfie(url, eventId);
+        if (!matchPersonId) {
+            return errorResponse(res, 'No matching person found.');
+        }
+
+        // Retrieve photos for matched person
+        const data = await photo.find(
+            { clusterIds: matchPersonId, eventId },
+            { eventId: 1, folderId: 1, url: 1 }
+        ).lean();
+
+        return successResponse(res, data, 'Person images retrieved successfully.');
+    } catch (error) {
+        console.error('Error in getPersonImages:', error);
+        return errorResponse(res, error?.message);
+    }
+};

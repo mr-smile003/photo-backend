@@ -25,9 +25,12 @@ const getUniqueEventNumber = async () => {
 // Create a new event
 export const createEvent = async (req, res) => {
   try {
-    const { name, description, date, eventPicture } = req.body;
+    const { name, description, date, eventPicture, eventNumber } = req.body;
 
-    const eventNumber = await getUniqueEventNumber();
+    const isExistingEvent = await Event.findOne({ eventNumber: eventNumber }).lean()
+    if (isExistingEvent) {
+      return res.status(400).json({ message: 'An event with this eventNumber already exists.' });
+    }
     // Create a new event
     const newEvent = new Event({
       name,
@@ -39,10 +42,10 @@ export const createEvent = async (req, res) => {
 
     // Save the event to the database
     await newEvent.save();
-    res.status(201).json({ message: 'Event created successfully', event: newEvent });
+    return res.status(201).json({ message: 'Event created successfully', event: newEvent });
   } catch (error) {
     console.error('Error creating event:', error);
-    res.status(500).json({ message: 'Error creating event' });
+    return res.status(500).json({ message: 'Error creating event' });
   }
 };
 
@@ -81,12 +84,16 @@ export const deleteEvent = async (req, res) => {
 
 export const updateEvent = async (req, res) => {
   try {
-    const { name, description, date, id, folder } = req.body;
+    const { name, description, date, id, folder, eventNumber } = req.body;
 
+    const isExistingEvent = await Event.findOne({ eventNumber: eventNumber, _id: { $ne: id }})
+    if (isExistingEvent) {
+      return res.status(400).json({ message: 'An event with this eventNumber already exists.' });
+    }
     // Find the event by ID and update it
     const updatedEvent = await Event.findByIdAndUpdate(
       id,
-      { name, description, date, folder },
+      { name, description, date, folder, eventNumber },
       { new: true, runValidators: true } // Return the updated document and validate updates
     );
 
@@ -94,10 +101,10 @@ export const updateEvent = async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
-    res.status(200).json({ message: 'Event updated successfully', event: updatedEvent });
+    return res.status(200).json({ message: 'Event updated successfully', event: updatedEvent });
   } catch (error) {
     console.error('Error updating event:', error);
-    res.status(500).json({ message: 'Error updating event' });
+    return res.status(500).json({ message: 'Error updating event' });
   }
 };
 

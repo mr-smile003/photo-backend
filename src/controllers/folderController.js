@@ -9,23 +9,24 @@ export const createFolder = async (req, res) => {
   try {
     const { name, description, date, folderPicture, eventId } = req.body;
     
+    const evneID = await Event.findOne({ eventNumber: eventId }, { _id: 1 }).lean()
     // Create a new folder
     const newFolder = new Folder({
       name,
       description,
       date,
       folderPicture,
-      eventId
+      eventId: evneID?._id
     });
 
     
     // Save the folder to the database
     const createdFolder = await newFolder.save();
-    await updateFolderInEvent(eventId, createdFolder?._id)
+    await updateFolderInEvent(evneID?._id, createdFolder?._id)
     res.status(201).json({ message: 'Folder created successfully', folder: newFolder });
   } catch (error) {
     console.error('Error creating folder:', error);
-    res.status(500).json({ message: 'Error creating folder' });
+    return res.status(500).json({ message: 'Error creating folder' });
   }
 };
 
@@ -35,10 +36,10 @@ export const getFolders = async (req, res) => {
     const { eventNumber } = req.query;
     const eventId = await Event.findOne({ eventNumber: eventNumber }, { _id: 1 }).lean();
     const folders = await Folder.find({ eventId: eventId?._id }).lean();
-    res.status(200).json(folders);
+    return res.status(200).json(folders);
   } catch (error) {
     console.error('Error fetching folders:', error);
-    res.status(500).json({ message: 'Error fetching folders' });
+    return res.status(500).json({ message: 'Error fetching folders' });
   }
 };
 
@@ -52,10 +53,10 @@ export const deleteFolder = async (req, res) => {
       return res.status(404).json({ message: 'Folder not found' });
     }
 
-    res.status(200).json({ message: 'Folder deleted successfully' });
+    return res.status(200).json({ message: 'Folder deleted successfully' });
   } catch (error) {
     console.error('Error deleting folder:', error);
-    res.status(500).json({ message: 'Error deleting folder' });
+    return res.status(500).json({ message: 'Error deleting folder' });
   }
 };
 
@@ -72,12 +73,12 @@ export const updateFolder = async (req, res) => {
     );
 
     if (!updatedFolder) {
-      return res.status(404).json({ message: 'Folder not found' });
+      return res.status(400).json({ message: 'Folder not found' });
     }
 
-    res.status(200).json({ message: 'Folder updated successfully', folder: updatedFolder });
+    return res.status(200).json({ message: 'Folder updated successfully', folder: updatedFolder });
   } catch (error) {
     console.error('Error updating folder:', error);
-    res.status(500).json({ message: 'Error updating folder' });
+    return res.status(500).json({ message: 'Error updating folder' });
   }
 };
